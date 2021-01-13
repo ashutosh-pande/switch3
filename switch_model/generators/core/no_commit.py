@@ -1,4 +1,4 @@
-# Copyright (c) 2015-2017 The Switch Authors. All rights reserved.
+# Copyright (c) 2015-2019 The Switch Authors. All rights reserved.
 # Licensed under the Apache License, Version 2.0, which is in the LICENSE file.
 
 """
@@ -27,7 +27,7 @@ def define_components(mod):
     that the aggregate fuel consumption with respect to energy
     production can be approximated as a line with a 0 intercept. This
     estimation method has been known to result in excessive cycling of
-    Combined Cycle Gas Turbines in the SWITCH-WECC model.
+    Combined Cycle Gas Turbines in the Switch-WECC model.
 
     DispatchUpperLimit[(g, t) in GEN_TPS] is an
     expression that defines the upper bounds of dispatch subject to
@@ -104,13 +104,23 @@ def define_components(mod):
         rule=lambda m, g, t:
             m.DispatchGen[g, t] == m.DispatchBaseloadByPeriod[g, m.tp_period[t]])
 
+    mod.Enforce_Curt_Baseload_Flat = Constraint(
+        mod.BASELOAD_GEN_TPS,
+        rule=lambda m, g, t:
+            m.Curt[g, t] == 0)
+
     mod.Enforce_Dispatch_Upper_Limit = Constraint(
         mod.GEN_TPS,
         rule=lambda m, g, t: (
             m.DispatchGen[g, t] <= m.DispatchUpperLimit[g, t]))
 
+    mod.Enforce_Curt_Upper_Limit = Constraint(
+        mod.GEN_TPS,
+        rule=lambda m, g, t: (
+            m.Curt[g, t] <= m.DispatchUpperLimit[g, t]))
+
     mod.GenFuelUseRate_Calculate = Constraint(
         mod.FUEL_BASED_GEN_TPS,
         rule=lambda m, g, t: (
             sum(m.GenFuelUseRate[g, t, f] for f in m.FUELS_FOR_GEN[g])
-            == m.DispatchGen[g, t] * m.gen_full_load_heat_rate[g]))
+            == (m.DispatchGen[g, t] - m.Curt[g,t]) * m.gen_full_load_heat_rate[g]))
